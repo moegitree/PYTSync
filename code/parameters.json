@@ -11,8 +11,8 @@
 
   "localRoot": "C:\\Users\\chen.zhiyuan\\Desktop\\prod",
   "subFolder":["IM-PYT", "SAP"],
-  "saveFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\pyt\\FoldStructure.txt",
-  "readFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\pyt\\FoldStructure.txt",
+  "saveFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\PYTSync\\code\\FoldStructure.txt",
+  "readFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\PYTSync\\code\\FoldStructure.txt",
 
   "webhookUrl": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=3b66899d-baff-4804-983e-11920c8d3916",
 
