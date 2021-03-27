@@ -1,0 +1,26 @@
+{
+  "authority": "https://login.chinacloudapi.cn/f0b37f91-ef7f-4315-abde-75092bd5b095",
+  "client_id": "45e83d66-e233-4c3b-ad4d-83c6a3969ba9",
+  "scope": [ "https://microsoftgraph.chinacloudapi.cn/.default" ],
+  "secret": "sF_p_1kGG.MJN_DXF9~m6531-_rwJ3iHG5",
+  "endpoint": "https://microsoftgraph.chinacloudapi.cn/v1.0",
+
+  "hostname": "scsksh001.sharepoint.cn" ,
+  "SPsite": "pytsupport",
+  "cloudRoot": "PYT-TestEnv",
+
+  "localRoot": "C:\\Users\\chen.zhiyuan\\Desktop\\prod",
+  "subFolder":["IM-PYT", "SAP"],
+  "saveFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\pyt\\FoldStructure.txt",
+  "readFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\pyt\\FoldStructure.txt",
+
+  "webhookUrl": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=3b66899d-baff-4804-983e-11920c8d3916",
+
+  "size_threshold": "4194304",
+  "proxy": {
+    "http": "http://127.0.0.1:10809",
+    "https": "http://127.0.0.1:10809"
+  }
+
+
+}

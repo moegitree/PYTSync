@@ -1,0 +1,11 @@
+{
+  "authority": "https://login.microsoftonline.com/4065399e-b173-4bd2-986a-81839f45d3b1",
+  "client_id": "425fa389-e039-4bdb-b1ef-d8df24543129",
+  "scope": [ "https://graph.microsoft.com/.default" ],
+  "secret": "AzCWF9Fz..dAVr__U35L1noEaFzBr87s.C",
+  "endpoint": "https://graph.microsoft.com/v1.0",
+
+  "hostname": "scsksh002.sharepoint.com" ,
+  "SPsite": "pytsupport",
+  "root": "PYT-TestEnv"
+}
