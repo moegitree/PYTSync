@@ -378,5 +378,45 @@ def SendMessage(C, upload_success, upload_fail, delete_success, delete_fail):
 
     return res
 
+def GetDriveItem(H, C, siteID, folderPath):
+    logger = logging.getLogger('mylogger')
+
+    H["Content-Type"]="application/json"
+    U = C["endpoint"] + "/sites/" + siteID + "/drive/root:/" + folderPath + ":/children"
+
+    # set proxy 
+    if "proxy" in C: proxy = C["proxy"]
+    else: proxy = {}
+
+    try:
+        Res = requests.get(U, headers=H, proxies=proxy)
+        logger.info("Get children for folder \""+ folderPath + "\": Succeed")
+    except:
+        logger.warning("Get children for folder \""+ folderPath + "\": Failed")
+        logger.debug("The status_code for response using GetDriveItem() is: " + str(Res.status_code))
+        logger.debug("Error message: " + str(Res.json()["error"]["message"]) )
+        return False
+
+    R = Res.json()["value"]
+    paths = []
+
+    for i in range(len(R)):
+        child = os.path.join(folderPath, R[i]["name"])
+        itemType = None
+        if "folder" in R[i]: 
+            itemType = "Directory"
+            childPaths = GetDriveItem(H, C, siteID, child)
+            if childPaths == False: continue
+            paths = paths + childPaths
+
+            [_,_,relativePath] = child.partition(C["cloudRoot"])
+            paths.append(relativePath + "\t" + itemType)
+        else: 
+            itemType = "File"
+            
+            [_,_,relativePath] = child.partition(C["cloudRoot"])
+            paths.append(relativePath + "\t" + itemType)
+
+    return paths
 
 

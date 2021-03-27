@@ -9,7 +9,6 @@ import time
 
 import requests
 import msal
-import re
 
 import SharePointUpload as SPU
 import DirectoryTree2file as DT
@@ -32,17 +31,6 @@ logger.addHandler(fh)
 # Load endpoint and credential info from parameter file.
 #config = json.load(open(sys.argv[1]))
 config = json.load(open(os.path.join(current_path, "parameters.json")))
-
-# Get root folder stucture and compare it with the saved one.
-DT1 = DT.GetDirectroyTree(config["localRoot"], config["subFolder"])
-DT2 = DT.File2DirectoryTree(config["readFileStructure"])
-DT.DirectoryTree2File(DT1, config["saveFileStructure"])
-
-[d12, f12, d21, f21] = DT.CmpDirectoryTree(DT1, DT2)
-uploadFileNum_success = 0
-uploadFileNum_fail = 0
-deleteFileNum_success = 0
-deleteFileNum_fail = 0
 
 # set proxy 
 if "proxy" in config: proxy = config["proxy"]
@@ -72,6 +60,18 @@ if "access_token" in result:
     siteID = SPU.GetSiteID(headers, config)
     #driveID = GetDriveID(headers, config, siteID)
     #rootID = GetItemID(headers, config, siteID, config['cloudRoot'])
+
+    # Get root folder stucture and compare it with the saved one.
+    DT1 = DT.GetDirectroyTree(config["localRoot"], config["subFolder"])
+    DT2 = SPU.GetDriveItem(headers, config, siteID, config["cloudRoot"])
+    DT3 = DT.File2DirectoryTree(config["readFileStructure"])
+    DT.DirectoryTree2File(DT2, config["saveFileStructure"])
+
+    [d12, f12, d21, f21] = DT.CmpDirectoryTree(DT1, DT2)
+    uploadFileNum_success = 0
+    uploadFileNum_fail = 0
+    deleteFileNum_success = 0
+    deleteFileNum_fail = 0
 
     for i in range(len(d12)):
         if d12[i] == "": continue
