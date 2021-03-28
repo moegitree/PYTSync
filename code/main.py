@@ -62,12 +62,12 @@ if "access_token" in result:
     #rootID = GetItemID(headers, config, siteID, config['cloudRoot'])
 
     # Get root folder stucture and compare it with the saved one.
-    DT1 = DT.GetDirectroyTree(config["localRoot"], config["subFolder"])
+    DT1 = DT.GetDirectroyTree(config["localRoot"], config["subFolders"])
     DT2 = SPU.GetDriveItem(headers, config, siteID, config["cloudRoot"])
     DT3 = DT.File2DirectoryTree(config["readFileStructure"])
     DT.DirectoryTree2File(DT2, config["saveFileStructure"])
 
-    [d12, f12, d21, f21] = DT.CmpDirectoryTree(DT1, DT2)
+    [d12, f12, d21, f21] = DT.CmpDirectoryTree(DT1, DT2, config["noDeleteFolders"])
     uploadFileNum_success = 0
     uploadFileNum_fail = 0
     deleteFileNum_success = 0

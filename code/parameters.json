@@ -10,7 +10,8 @@
   "cloudRoot": "PYT-TestEnv",
 
   "localRoot": "C:\\Users\\chen.zhiyuan\\Desktop\\prod",
-  "subFolder":["IM-PYT", "SAP"],
+  "subFolders":["IM-PYT", "SAP"],
+  "noDeleteFolders":["IM-PYT"],
   "saveFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\PYTSync\\code\\FoldStructure.txt",
   "readFileStructure": "C:\\Users\\chen.zhiyuan\\Documents\\Python\\PYTSync\\code\\FoldStructure.txt",
 

@@ -50,7 +50,7 @@ def GetDirectroyTree( rootFolder, subFolders ):
                 flag = False
     return paths
 
-def CmpDirectoryTree( DT1, DT2 ):
+def CmpDirectoryTree( DT1, DT2, noDeleteList ):
     s1 = set(DT1)
     s2 = set(DT2)
     D1_2 = list(s1 - s2)
@@ -70,6 +70,11 @@ def CmpDirectoryTree( DT1, DT2 ):
     
     for j in range(len(D2_1)):
         [path, Ftype] = D2_1[j].split("\t", 2)
+        
+        head = path.split("\\", 2)[1]
+        if head in noDeleteList:
+            continue
+
         if Ftype == "Directory":
             dir2_1.append(path)
         if Ftype == "File":
