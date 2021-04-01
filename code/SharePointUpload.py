@@ -6,6 +6,8 @@ import sys  # For simplicity, we'll read config file from 1st CLI param sys.argv
 import json
 import logging
 import time
+import queue
+import threading
 
 import requests
 import re
@@ -419,4 +421,50 @@ def GetDriveItem(H, C, siteID, folderPath):
 
     return paths
 
+def UploadFilesFromQueue(thread_self, H, C, siteID, localRoot, cloudRoot, Q):
+    logger = logging.getLogger('mylogger')
+    
+    while not Q.empty():
+        f = Q.get()
+        print(cloudRoot + f)
+        logger.info("Main process: " + cloudRoot + f)
 
+        f_size = os.path.getsize(localRoot + f)
+        if f_size < int(C["size_threshold"]):
+            r = UploadFile(H, C, siteID, localRoot, cloudRoot, f)
+        else:
+            r = UploadLargeFile(H, C, siteID, localRoot, cloudRoot, f)
+        
+        if r: thread_self.success_count += 1
+        else: thread_self.fail_count += 1
+
+class uploadFileThread(threading.Thread):
+    def __init__(self, name, s_count=0, f_count=0, **kwargs):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.success_count = s_count
+        self.fail_count = f_count
+        self.kwargs = kwargs
+
+    def run(self):
+        UploadFilesFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['localRoot'], self.kwargs['cloudRoot'], self.kwargs['queue'])    
+
+def CreateFolderFromQueue(thread_self, H, C, siteID, cloudRoot, Q):
+    logger = logging.getLogger('mylogger')
+
+    while not  Q.empty():
+        f = Q.get()
+        print(cloudRoot + f)
+        logger.info("Main process: " + cloudRoot + f)
+        CreateFolder(H, C, siteID, cloudRoot, f)
+
+class createFolderThread(threading.Thread):
+    def __init__(self, name, **kwargs):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.kwargs = kwargs 
+
+    def run(self):
+        CreateFolderFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['cloudRoot'], self.kwargs['queue'])   
+
+        

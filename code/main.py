@@ -6,7 +6,8 @@ import sys  # For simplicity, we'll read config file from 1st CLI param sys.argv
 import json
 import logging
 import time
-
+import queue
+import threading
 import requests
 import msal
 
@@ -64,7 +65,7 @@ if "access_token" in result:
     # Get root folder stucture and compare it with the saved one.
     DT1 = DT.GetDirectroyTree(config["localRoot"], config["subFolders"])
     DT2 = SPU.GetDriveItem(headers, config, siteID, config["cloudRoot"])
-    DT3 = DT.File2DirectoryTree(config["readFileStructure"])
+    # DT3 = DT.File2DirectoryTree(config["readFileStructure"])
     DT.DirectoryTree2File(DT2, config["saveFileStructure"])
 
     [d12, f12, d21, f21] = DT.CmpDirectoryTree(DT1, DT2, config["noDeleteFolders"])
@@ -79,19 +80,59 @@ if "access_token" in result:
         logger.info("Main process: " + folder_path)
         print(folder_path)
         SPU.CreateFolder(headers, config, siteID, config['cloudRoot'], d12[i])
+    
+    # Q_d12 = queue.Queue(10000)
+    # for i in range(len(d12)):
+    #     Q_d12.put(d12[i])
+
+    # threadA = SPU.createFolderThread("Thread-A", headers=headers, config=config, siteID=siteID, cloudRoot=config['cloudRoot'], queue=Q_d12)
+    # threadB = SPU.createFolderThread("Thread-B", headers=headers, config=config, siteID=siteID, cloudRoot=config['cloudRoot'], queue=Q_d12)
+    # threadC = SPU.createFolderThread("Thread-C", headers=headers, config=config, siteID=siteID, cloudRoot=config['cloudRoot'], queue=Q_d12)
+    # threadD = SPU.createFolderThread("Thread-D", headers=headers, config=config, siteID=siteID, cloudRoot=config['cloudRoot'], queue=Q_d12)
+    # threadA.start()
+    # threadB.start()
+    # threadC.start()
+    # threadD.start()
+
+    # threadA.join()
+    # threadB.join()
+    # threadC.join()
+    # threadD.join()
+
+    # for i in range(len(f12)):
+    #     file_path = config['cloudRoot']+f12[i]
+    #     logger.info("Main process: " + file_path)
+    #     print(file_path) 
+    #     file_size = os.path.getsize(config['localRoot']+ f12[i])
+    #     if file_size < int(config["size_threshold"]):
+    #         r = SPU.UploadFile(headers, config, siteID, config['localRoot'], config['cloudRoot'], f12[i])
+    #     else:
+    #         r = SPU.UploadLargeFile(headers, config, siteID, config['localRoot'], config['cloudRoot'], f12[i])
         
+    #     if r: uploadFileNum_success += 1
+    #     else: uploadFileNum_fail += 1
+
+    Q_f12 = queue.Queue(10000)
     for i in range(len(f12)):
-        file_path = config['cloudRoot']+f12[i]
-        logger.info("Main process: " + file_path)
-        print(file_path) 
-        file_size = os.path.getsize(config['localRoot']+ f12[i])
-        if file_size < int(config["size_threshold"]):
-            r = SPU.UploadFile(headers, config, siteID, config['localRoot'], config['cloudRoot'], f12[i])
-        else:
-            r = SPU.UploadLargeFile(headers, config, siteID, config['localRoot'], config['cloudRoot'], f12[i])
-        
-        if r: uploadFileNum_success += 1
-        else: uploadFileNum_fail += 1
+        Q_f12.put(f12[i])
+    
+    thread1 = SPU.uploadFileThread("Thread-1", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
+    thread2 = SPU.uploadFileThread("Thread-2", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
+    thread3 = SPU.uploadFileThread("Thread-3", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
+    thread4 = SPU.uploadFileThread("Thread-4", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
+    thread1.start()
+    thread2.start()
+    thread3.start()
+    thread4.start()
+
+    thread1.join()
+    thread2.join()
+    thread3.join()
+    thread4.join()
+
+    uploadFileNum_success = thread1.success_count + thread2.success_count + thread3.success_count + thread4.success_count
+    uploadFileNum_fail = thread1.fail_count + thread2.fail_count + thread3.fail_count + thread4.fail_count
+
 
     for i in range(len(f21)):
         file_path = config['cloudRoot'] + f21[i]
@@ -132,5 +173,3 @@ if "access_token" in result:
     # filename = "1000000206.pdf"
     # result = UploadFile( headers, config, siteID, itemID, filePath, filename )
     # print(result)
-
-
