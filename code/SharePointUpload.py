@@ -54,8 +54,11 @@ def GetDriveID(H, C, siteID):
         logger.error("Error message: " + str(R.json()["error"]["message"]) )
         sys.exit()
 
-def GetItemID(H, C, siteID, item):
+def GetItemID(H, C, siteID, item, itemIDList):
     logger = logging.getLogger('mylogger')
+
+    if item in itemIDList:
+        return itemIDList[item]
 
     [relativePath, itemName] = os.path.split(item)
 
@@ -77,6 +80,7 @@ def GetItemID(H, C, siteID, item):
         for i in range(len(R)):
             if R[i]["name"] == itemName:
                 itemID = R[i]["id"]
+                itemIDList[item] = itemID
                 logger.info("Get itemID for item \""+ itemName + "\": Scuccessed")
                 logger.debug("ItemID for \"" + itemName + "\" is: " + str(itemID))
                 return itemID
@@ -91,11 +95,11 @@ def GetItemID(H, C, siteID, item):
         return False
 
 # Create folder with all its parent folders if they didn't exist
-def CreateFolder(H, C, siteID, cloudRoot, relativePath):
+def CreateFolder(H, C, siteID, cloudRoot, relativePath, itemIDList):
     logger = logging.getLogger('mylogger')
 
     folderPath = cloudRoot + relativePath 
-    folderID = GetItemID(H, C, siteID, folderPath)
+    folderID = GetItemID(H, C, siteID, folderPath, itemIDList)
 
     #if folder already exists, stop creating new folder and return the existed one's ID
     if folderID != False:
@@ -107,9 +111,9 @@ def CreateFolder(H, C, siteID, cloudRoot, relativePath):
         [parentPath, folderName] = os.path.split(relativePath)
         #use CreateFolder to return ID for parent folder
         if parentPath == "\\": 
-            parentID = CreateFolder(H, C, siteID, "", cloudRoot)
+            parentID = CreateFolder(H, C, siteID, "", cloudRoot, itemIDList)
         else:
-            parentID = CreateFolder(H, C, siteID, cloudRoot, parentPath) 
+            parentID = CreateFolder(H, C, siteID, cloudRoot, parentPath, itemIDList) 
 
         newfolder = {
             "folder": { },
@@ -126,6 +130,7 @@ def CreateFolder(H, C, siteID, cloudRoot, relativePath):
         try:
             Res = requests.post(U, headers=H, data=json.dumps(newfolder), proxies=proxy)
             Res.raise_for_status()
+            itemIDList[folderPath] = Res.json()["id"]
             logger.info("Create folder \"" + folderName + "\": Successed" )
             logger.debug("ItemID for new folder \"" + folderName + "\" is:" + str(Res.json()["id"]))
             return Res.json()["id"]
@@ -136,15 +141,15 @@ def CreateFolder(H, C, siteID, cloudRoot, relativePath):
             return False
 
 # Upload files up to 4MB in size
-def UploadFile(H, C, siteID, localRoot, cloudRoot, relativePath):#rootPath, filePath):
+def UploadFile(H, C, siteID, localRoot, cloudRoot, relativePath, itemIDList):#rootPath, filePath):
     logger = logging.getLogger('mylogger')
 
     [parentPath, fileName] = os.path.split(relativePath)
     fileName = fileName.strip()    #remove leading and tailing space 
     if parentPath == "\\":
-        parentID = CreateFolder(H, C, siteID, "", cloudRoot)
+        parentID = CreateFolder(H, C, siteID, "", cloudRoot, itemIDList)
     else:
-        parentID = CreateFolder(H, C, siteID, cloudRoot, parentPath)
+        parentID = CreateFolder(H, C, siteID, cloudRoot, parentPath, itemIDList)
 
     U = C["endpoint"] + "/sites/" + siteID + "/drive/items/" + parentID + ":/" + fileName +":/content"
 
@@ -245,7 +250,7 @@ def GetNextExpectedRange(res):
         return False
 
 # Upload files with large size
-def UploadLargeFile(H, C, siteID, localRoot, cloudRoot, relativePath, segment=5*1024*1024):
+def UploadLargeFile(H, C, siteID, localRoot, cloudRoot, relativePath, itemIDList, segment=5*1024*1024):
     logger = logging.getLogger('mylogger')
 
     absPath = localRoot + relativePath
@@ -253,7 +258,7 @@ def UploadLargeFile(H, C, siteID, localRoot, cloudRoot, relativePath, segment=5*
     fileName = fileName.strip()
 
     #Create parent folder and get folder's id
-    parentID = CreateFolder(H, C, siteID, cloudRoot, parentPath)
+    parentID = CreateFolder(H, C, siteID, cloudRoot, parentPath, itemIDList)
     #Creat Upload Session
     uploadUrl = CreateUploadSession(H, C, siteID, parentID, fileName)
 
@@ -307,13 +312,13 @@ def DeleteItem(H, C, siteID, itemID):
         return False
 
 # Delete all subfolders and files under folderPath
-def DeleteFolder(H, C, siteID, cloudRoot, relativePath):
+def DeleteFolder(H, C, siteID, cloudRoot, relativePath, itemIDList):
     logger = logging.getLogger('mylogger')
 
     folderPath = cloudRoot + relativePath
     logger.info("Deleting folder: \"" + folderPath + "\"")
 
-    folderID = GetItemID(H, C, siteID, folderPath)
+    folderID = GetItemID(H, C, siteID, folderPath, itemIDList)
     if folderID: #folder found
         result = DeleteItem(H, C, siteID, folderID)
         
@@ -329,13 +334,13 @@ def DeleteFolder(H, C, siteID, cloudRoot, relativePath):
         logger.info("Folder \"" + folderPath + "\" does not exist")
         return False
 
-def DeleteFile(H, C, siteID, cloudRoot, relativePath):
+def DeleteFile(H, C, siteID, cloudRoot, relativePath, itemIDList):
     logger = logging.getLogger('mylogger')
 
     filePath = cloudRoot + relativePath  
     logger.info("Deleting file: \"" + filePath + "\"")
 
-    fileID = GetItemID(H, C, siteID, filePath)
+    fileID = GetItemID(H, C, siteID, filePath, itemIDList)
     if fileID: #file found
         result = DeleteItem(H, C, siteID, fileID)
 
@@ -421,7 +426,7 @@ def GetDriveItem(H, C, siteID, folderPath):
 
     return paths
 
-def UploadFilesFromQueue(thread_self, H, C, siteID, localRoot, cloudRoot, Q):
+def UploadFilesFromQueue(thread_self, H, C, siteID, localRoot, cloudRoot, itemIDList, Q):
     logger = logging.getLogger('mylogger')
     
     while not Q.empty():
@@ -431,12 +436,21 @@ def UploadFilesFromQueue(thread_self, H, C, siteID, localRoot, cloudRoot, Q):
 
         f_size = os.path.getsize(localRoot + f)
         if f_size < int(C["size_threshold"]):
-            r = UploadFile(H, C, siteID, localRoot, cloudRoot, f)
+            r = UploadFile(H, C, siteID, localRoot, cloudRoot, f, itemIDList)
         else:
-            r = UploadLargeFile(H, C, siteID, localRoot, cloudRoot, f)
+            r = UploadLargeFile(H, C, siteID, localRoot, cloudRoot, f, itemIDList)
         
         if r: thread_self.success_count += 1
         else: thread_self.fail_count += 1
+
+def CreateFolderFromQueue(thread_self, H, C, siteID, cloudRoot, itemIDList, Q):
+    logger = logging.getLogger('mylogger')
+
+    while not  Q.empty():
+        f = Q.get()
+        print(cloudRoot + f)
+        logger.info("Main process: " + cloudRoot + f)
+        CreateFolder(H, C, siteID, cloudRoot, f, itemIDList)
 
 class uploadFileThread(threading.Thread):
     def __init__(self, name, s_count=0, f_count=0, **kwargs):
@@ -447,16 +461,7 @@ class uploadFileThread(threading.Thread):
         self.kwargs = kwargs
 
     def run(self):
-        UploadFilesFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['localRoot'], self.kwargs['cloudRoot'], self.kwargs['queue'])    
-
-def CreateFolderFromQueue(thread_self, H, C, siteID, cloudRoot, Q):
-    logger = logging.getLogger('mylogger')
-
-    while not  Q.empty():
-        f = Q.get()
-        print(cloudRoot + f)
-        logger.info("Main process: " + cloudRoot + f)
-        CreateFolder(H, C, siteID, cloudRoot, f)
+        UploadFilesFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['localRoot'], self.kwargs['cloudRoot'], self.kwargs['itemIDList'], self.kwargs['queue'])    
 
 class createFolderThread(threading.Thread):
     def __init__(self, name, **kwargs):
@@ -465,6 +470,6 @@ class createFolderThread(threading.Thread):
         self.kwargs = kwargs 
 
     def run(self):
-        CreateFolderFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['cloudRoot'], self.kwargs['queue'])   
+        CreateFolderFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['cloudRoot'], self.kwargs['itemIDList'], self.kwargs['queue'])   
 
         

@@ -74,12 +74,14 @@ if "access_token" in result:
     deleteFileNum_success = 0
     deleteFileNum_fail = 0
 
+    itemIDList = {} # dict for storing item id
+
     for i in range(len(d12)):
         if d12[i] == "": continue
         folder_path = config['cloudRoot'] + d12[i]
         logger.info("Main process: " + folder_path)
         print(folder_path)
-        SPU.CreateFolder(headers, config, siteID, config['cloudRoot'], d12[i])
+        SPU.CreateFolder(headers, config, siteID, config['cloudRoot'], d12[i], itemIDList)
     
     # Q_d12 = queue.Queue(10000)
     # for i in range(len(d12)):
@@ -116,10 +118,10 @@ if "access_token" in result:
     for i in range(len(f12)):
         Q_f12.put(f12[i])
     
-    thread1 = SPU.uploadFileThread("Thread-1", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
-    thread2 = SPU.uploadFileThread("Thread-2", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
-    thread3 = SPU.uploadFileThread("Thread-3", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
-    thread4 = SPU.uploadFileThread("Thread-4", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], queue=Q_f12)
+    thread1 = SPU.uploadFileThread("Thread-1", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], itemIDList=itemIDList, queue=Q_f12)
+    thread2 = SPU.uploadFileThread("Thread-2", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], itemIDList=itemIDList, queue=Q_f12)
+    thread3 = SPU.uploadFileThread("Thread-3", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], itemIDList=itemIDList, queue=Q_f12)
+    thread4 = SPU.uploadFileThread("Thread-4", headers=headers, config=config, siteID=siteID, localRoot=config['localRoot'], cloudRoot=config['cloudRoot'], itemIDList=itemIDList, queue=Q_f12)
     thread1.start()
     thread2.start()
     thread3.start()
@@ -138,7 +140,7 @@ if "access_token" in result:
         file_path = config['cloudRoot'] + f21[i]
         logger.info("Main process: " + file_path)
         print(file_path)
-        r = SPU.DeleteFile(headers, config, siteID, config['cloudRoot'], f21[i])
+        r = SPU.DeleteFile(headers, config, siteID, config['cloudRoot'], f21[i], itemIDList)
 
         if r: deleteFileNum_success += 1
         else: deleteFileNum_fail += 1
@@ -148,7 +150,7 @@ if "access_token" in result:
         folder_path = config['cloudRoot'] + d21[i]
         logger.info("Main process: " + folder_path)
         print(folder_path)
-        SPU.DeleteFolder(headers, config, siteID, config['cloudRoot'], d21[i])
+        SPU.DeleteFolder(headers, config, siteID, config['cloudRoot'], d21[i], itemIDList)
 
     # print("Upload Successed：" + str(uploadFileNum_success))
     # print("Upload Failed: " + str(uploadFileNum_fail))
