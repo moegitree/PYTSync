@@ -388,8 +388,15 @@ def GetDriveItem(H, C, siteID, folderPath):
     if "proxy" in C: proxy = C["proxy"]
     else: proxy = {}
 
+    R = []
     try:
-        Res = requests.get(U, headers=H, proxies=proxy)
+        while True:
+            Res = requests.get(U, headers=H, proxies=proxy)
+            R = R + Res.json()["value"]
+
+            if "@odata.nextLink" not in Res.json(): break
+            U = Res.json()["@odata.nextLink"]
+
         logger.info("Get children for folder \""+ folderPath + "\": Succeed")
     except:
         logger.warning("Get children for folder \""+ folderPath + "\": Failed")
@@ -397,7 +404,6 @@ def GetDriveItem(H, C, siteID, folderPath):
         logger.debug("Error message: " + str(Res.json()["error"]["message"]) )
         return False
 
-    R = Res.json()["value"]
     paths = []
 
     for i in range(len(R)):
