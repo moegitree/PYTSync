@@ -141,7 +141,7 @@ def CreateFolder(H, C, siteID, cloudRoot, relativePath, itemIDList):
             return False
 
 # Upload files up to 4MB in size
-def UploadFile(H, C, siteID, localRoot, cloudRoot, relativePath, itemIDList):#rootPath, filePath):
+def UploadFile(H, C, siteID, localRoot, cloudRoot, relativePath, itemIDList):
     logger = logging.getLogger('mylogger')
 
     [parentPath, fileName] = os.path.split(relativePath)
@@ -385,7 +385,7 @@ def SendMessage(C, upload_success, upload_fail, delete_success, delete_fail):
 
     return res
 
-def GetDriveItem(H, C, siteID, folderPath):
+def GetDriveItem_recursive(H, C, siteID, folderPath):
     logger = logging.getLogger('mylogger')
 
     H["Content-Type"]="application/json"
@@ -399,6 +399,8 @@ def GetDriveItem(H, C, siteID, folderPath):
     try:
         while True:
             Res = requests.get(U, headers=H, proxies=proxy)
+            Res.raise_for_status()
+
             R = R + Res.json()["value"]
 
             if "@odata.nextLink" not in Res.json(): break
@@ -407,7 +409,7 @@ def GetDriveItem(H, C, siteID, folderPath):
         logger.info("Get children for folder \""+ folderPath + "\": Succeed")
     except:
         logger.warning("Get children for folder \""+ folderPath + "\": Failed")
-        logger.debug("The status_code for response using GetDriveItem() is: " + str(Res.status_code))
+        logger.debug("The status_code for response using GetDriveItem_recursive() is: " + str(Res.status_code))
         logger.debug("Error message: " + str(Res.json()["error"]["message"]) )
         return False
 
@@ -430,6 +432,48 @@ def GetDriveItem(H, C, siteID, folderPath):
             [_,_,relativePath] = child.partition(C["cloudRoot"])
             paths.append(relativePath + "\t" + itemType)
 
+    return paths
+
+def GetDriveItem(H, C, siteID, folderPath):
+    logger = logging.getLogger('mylogger')
+
+    H["Content-Type"]="application/json"
+    U = C["endpoint"] + "/sites/" + siteID + "/drive/root:/" + folderPath + ":/children"
+
+    # set proxy 
+    if "proxy" in C: proxy = C["proxy"]
+    else: proxy = {}
+
+    R = []
+    try:
+        while True:
+            Res = requests.get(U, headers=H, proxies=proxy)
+            Res.raise_for_status()
+            
+            R = R + Res.json()["value"]
+
+            if "@odata.nextLink" not in Res.json(): break
+            U = Res.json()["@odata.nextLink"]
+
+        logger.info("Get children for folder \""+ folderPath + "\": Succeed")
+    except:
+        logger.warning("Get children for folder \""+ folderPath + "\": Failed")
+        logger.debug("The status_code for response using GetDriveItem() is: " + str(Res.status_code))
+        logger.debug("Error message: " + str(Res.json()["error"]["message"]) )
+        return False
+
+    paths = []
+    for i in range(len(R)):
+        child = os.path.join(folderPath, R[i]["name"])
+        if "folder" in R[i]: 
+            itemType = "Directory"
+            [_,_,relativePath] = child.partition(C["cloudRoot"])
+            paths.append(relativePath + "\t" + itemType)
+        elif "file" in R[i]: 
+            itemType = "File"
+            [_,_,relativePath] = child.partition(C["cloudRoot"])
+            paths.append(relativePath + "\t" + itemType)
+    
     return paths
 
 def UploadFilesFromQueue(thread_self, H, C, siteID, localRoot, cloudRoot, itemIDList, Q):
@@ -458,6 +502,36 @@ def CreateFolderFromQueue(thread_self, H, C, siteID, cloudRoot, itemIDList, Q):
         logger.info("Main process: " + cloudRoot + f)
         CreateFolder(H, C, siteID, cloudRoot, f, itemIDList)
 
+def GetDriveItemFromQueue(thread_self, H, C, siteID, Q, S, index):
+    paths = []
+    flag = True
+
+    while flag:
+        while not Q.empty():
+            S[index] = 1 # set 1 indicates the thread is working
+
+            parentPath = Q.get()
+            childPaths = GetDriveItem(H, C, siteID, parentPath)
+            paths += childPaths
+
+            # push folder in child to Queue
+            for i in range(len(childPaths)):
+                [childPath, childType] = childPaths[i].split("\t", 2)
+                if childType == "Directory":
+                    Q.put(C["cloudRoot"] + childPath)
+
+        S[index] = 0   # set 0 indicates the thread is in rest
+
+        # check other threads are working or not. If all threads are in rest, end the func
+        S_sum = 0
+        for x in range(len(S)): S_sum += S[x]
+        if S_sum == 0: flag = False
+        else: 
+            flag = True
+            time.sleep(1)
+
+    return paths
+
 class uploadFileThread(threading.Thread):
     def __init__(self, name, s_count=0, f_count=0, **kwargs):
         threading.Thread.__init__(self)
@@ -467,7 +541,11 @@ class uploadFileThread(threading.Thread):
         self.kwargs = kwargs
 
     def run(self):
-        UploadFilesFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['localRoot'], self.kwargs['cloudRoot'], self.kwargs['itemIDList'], self.kwargs['queue'])    
+        UploadFilesFromQueue(
+            self, 
+            self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], 
+            self.kwargs['config']['localRoot'], self.kwargs['config']['cloudRoot'], 
+            self.kwargs['itemIDList'], self.kwargs['queue'])    
 
 class createFolderThread(threading.Thread):
     def __init__(self, name, **kwargs):
@@ -476,6 +554,42 @@ class createFolderThread(threading.Thread):
         self.kwargs = kwargs 
 
     def run(self):
-        CreateFolderFromQueue(self, self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], self.kwargs['cloudRoot'], self.kwargs['itemIDList'], self.kwargs['queue'])   
+        CreateFolderFromQueue(
+            self, 
+            self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], 
+            self.kwargs['cloudRoot'], self.kwargs['itemIDList'], 
+            self.kwargs['queue'])   
 
-        
+class getDriveItemThread(threading.Thread):
+    def __init__(self, name, **kwargs):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.kwargs = kwargs 
+
+    def run(self):
+        p = GetDriveItemFromQueue(
+            self, 
+            self.kwargs['headers'], self.kwargs['config'], self.kwargs['siteID'], 
+            self.kwargs['queue'], self.kwargs['signal'], self.kwargs['index']) 
+        self.paths = p
+
+def GetCloudDirectoryTree(H, C, siteID):
+    Q_paths = queue.Queue(10000)
+    Q_paths.put(C['cloudRoot'])
+
+    thread_num = 4
+    
+    signal = [0]*thread_num
+    thread_list = [None]*thread_num
+    for i in range(thread_num):
+        thread_list[i] = getDriveItemThread("thread-"+str(i), headers=H, config=C, siteID=siteID, queue=Q_paths, signal=signal, index=i)
+    
+    for i in range(thread_num):
+        thread_list[i].start()
+
+    paths = []   
+    for i in range(thread_num):
+        thread_list[i].join()
+        paths += thread_list[i].paths
+    
+    return paths
